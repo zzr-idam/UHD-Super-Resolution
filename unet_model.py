@@ -20,7 +20,8 @@ class UNet(nn.Module):
         self.up4 = Up(128, 64, bilinear)
         self.outc = OutConv(64, 3)
         self.pixelUnShuffle = nn.PixelUnshuffle(2)
-        self.output = nn.Conv2d(3, 3, kernel_size=3, padding=1, stride=1)
+        self.output = nn.Conv2d(3, 12, kernel_size=3, padding=1, stride=1)
+        self.pixelShuffle = nn.PixelShuffle(2)
 
     def forward(self, x):
         in_x = self.pixelUnShuffle(F.interpolate(x, [128, 128], mode='bilinear'))
@@ -34,12 +35,12 @@ class UNet(nn.Module):
         in_x = self.up3(in_x, x2)
         in_x = self.up4(in_x, x1)
         x = x + F.interpolate(self.outc(in_x), [x.shape[2], x.shape[3]], mode='bilinear')
-        return self.output(x)
+        return self.pixelShuffle(self.output(x))
     
 if __name__ == '__main__':
     from torchsummary import summary
     model = UNet()
-    x = torch.randn(1, 3, 3840, 2160)
+    x = torch.randn(1, 3, 1920, 1080)
     out = model(x)
     print(out.shape)    # torch.Size([1, 3, 256, 256])
     
