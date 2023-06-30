@@ -2,6 +2,8 @@
 We create a dataset and a customized algorithm to run image super-resolution at 4K resolution in real time.
 
 
+![image](https://github.com/zzr-idam/UHD-Super-Resolution/blob/main/framework.png)
+
 # Dataset (Baidu cloud)
 
 
