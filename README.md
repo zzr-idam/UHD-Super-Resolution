@@ -1,6 +1,6 @@
-# UHD-Super-Resolution
+# UHD-Super-Resolution with mobileSAM
 We create a dataset and a customized algorithm to run image super-resolution at 4K resolution in real time.
-
+Notably, the feature maps obtained from the Segment Anything are fused with the original images and fed into the network.
 
 ![image](https://github.com/zzr-idam/UHD-Super-Resolution/blob/main/framework.png)
 
