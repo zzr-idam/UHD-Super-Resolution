@@ -38,67 +38,41 @@ class UNet(nn.Module):
         x = x + F.interpolate(self.outc(in_x), [x.shape[2], x.shape[3]], mode='bilinear')
         return self.pixelShuffle(self.output(x))[:, :, :, 0:-2]
  
-def show_anns(anns):
-    if len(anns) == 0:
-        return
-    sorted_anns = sorted(anns, key=(lambda x: x['area']), reverse=True)
-    #ax = plt.gca()
-    #ax.set_autoscale_on(False)
+from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator
 
-    img = np.ones((sorted_anns[0]['segmentation'].shape[0], sorted_anns[0]['segmentation'].shape[1]))
-    #img[:,:,3] = 0
+
+model = UNet()
+image = torch.randn(2, 3, 1920, 1080)
+
+sam_checkpoint = "weights/mobile_sam.pt"
+model_type = "vit_t"
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+sam.to(device=device)
+sam.eval()
+mask_generator = SamAutomaticMaskGenerator(sam)
+
+segtensor = torch.zeros(image.shape)
+
+for k in range(image.shape[0]):
+
+    masks = mask_generator.generate(image[k].squeeze(0))
+    sorted_anns = sorted(masks, key=(lambda x: x['area']), reverse=True)
+    sortedtensor =  torch.zeros((len(sorted_anns), sorted_anns[0]['segmentation'].shape[0], sorted_anns[0]['segmentation'].shape[1]))
+    i = 0
     for ann in sorted_anns:
-        m = ann['segmentation']
-        #print(m.shape)
-        img = m
-        #color_mask = np.concatenate([np.random.random(3), [0.35]])
-        #img[m] = color_mask
-    return img
-
-import sys
-sys.path.append("..")
-from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
-
-
-
-if __name__ == '__main__':
-    
-    sam_checkpoint = r"D:\Users\Downloads\MobileSAM-master\weights/mobile_sam.pt"
-    model_type = "vit_t"
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-    sam.to(device=device)
-    sam.eval()
-
-    mask_generator = SamAutomaticMaskGenerator(sam)
-    predictor = SamPredictor(sam)
+            m = ann['segmentation']
+            sortedtensor[i] = torch.tensor(m).float()
+            i = i + 1
+    sortedtensor = torch.sum(sortedtensor, dim=0)
+    segtensor[k] = sortedtensor / len(sorted_anns)
     
     
-    
-    from torchsummary import summary
-    model = UNet()
-    x = torch.randn(1, 3, 1920, 1080)
-    
-    sorted_x = torch.zeros((x.shape[0], x.shape[1], x.shape[2]))
-    
-    
-    for i in range(sorted_x.shape[0]):
-        masks = mask_generator.generate(x[0])
-        feature = show_anns(masks)
-        #print(feature.shape)
-        sorted_x[i] = torch.from_numpy(feature)
-    
-    #print(sorted_x.shape)
-    
-    x = torch.cat((x, sorted_x.unsqueeze(3)), dim=3)
+    x = torch.cat((image, segtensor), dim=3)
     
     out = model(x)
     
     
     print(out.shape)
-    
-    #print(out.shape)    # torch.Size([1, 3, 256, 256])
-    
-    summary(model, (3, 1080, 1921), device='cpu')   
